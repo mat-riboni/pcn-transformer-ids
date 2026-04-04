@@ -1,7 +1,7 @@
 
 import torch
 import torch.nn as nn
-from PCN_layer import PCNLayer
+from .PCN_layer import PCNLayer
 
 class PredictiveCodingNetwork(nn.Module):
     def __init__(self,
@@ -17,12 +17,14 @@ class PredictiveCodingNetwork(nn.Module):
         for l in range(self.L)
         ])
         self.readout = nn.Linear(dims[-1], output_dim, bias=False)
+
     def init_latents(self, batch_size, device):
         return [
         torch.randn(batch_size, d, device=device,
         requires_grad=False)
         for d in self.dims[1:]
         ]
+    
     def compute_errors(self, inputs_latents):
         errors, gain_modulated_errors = [], []
         for l, layer in enumerate(self.layers):

@@ -16,7 +16,6 @@ class PCNLayer(nn.Module):
         self.activation_deriv = activation_deriv
 
     def forward(self, x_above):
-        with autocast(device_type='cuda'):
-            a = x_above @ self.W.T
-            x_hat = self.activation_fn(a)
-            return x_hat, a
+        a = x_above @ self.W.T
+        x_hat = self.activation_fn(a)
+        return x_hat, a
