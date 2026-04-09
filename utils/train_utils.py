@@ -1,5 +1,7 @@
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 import torch
+import numpy as np
+
 
 def get_device():
     if torch.backends.mps.is_available():
@@ -36,17 +38,22 @@ def evaluate_model(model, test_loader):
     
     return acc, conf_matrix, class_report
 
-import torch
-import numpy as np
-from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
+
+
+
+
+# (Assumendo che get_device sia definito altrove)
 
 def evaluate_pcn_binary(model, test_loader, T_infer, eta_infer, threshold=0.4):
-    device = get_device()
+    device = torch.device('mps') # o get_device()
     model.eval()
     model.to(device)
     
     all_preds = []
     all_trues = []
+    
+    total_abs_error = 0.0
+    total_error_elements = 0
     
     with torch.no_grad():
         for x_batch, y_batch in test_loader:
@@ -64,6 +71,13 @@ def evaluate_pcn_binary(model, test_loader, T_infer, eta_infer, threshold=0.4):
                 
                 eps_L = torch.zeros_like(inputs_latents[-1])
                 errors_extended = errors + [eps_L]
+                
+                if t == T_infer:
+                    batch_error_sum = sum(torch.abs(e).sum().item() for e in errors_extended)
+                    batch_error_elements = sum(e.numel() for e in errors_extended)
+                    
+                    total_abs_error += batch_error_sum
+                    total_error_elements += batch_error_elements
                 
                 for l in range(1, model.L + 1):
                     grad_Xl = errors_extended[l] - gain_modulated_errors[l-1] @ weights[l-1]
@@ -83,8 +97,13 @@ def evaluate_pcn_binary(model, test_loader, T_infer, eta_infer, threshold=0.4):
     conf_matrix = confusion_matrix(all_trues, all_preds)
     class_report = classification_report(all_trues, all_preds)
     
-    print(f"Accuracy: {acc:.4f}\n")
+    mean_final_abs_error = total_abs_error / total_error_elements if total_error_elements > 0 else 0
+    
+    print(f"Accuracy: {acc:.4f}")
+    print(f"Mean Absolute Error (t={T_infer}): {mean_final_abs_error:.6f}\n")
+    print("Confusion Matrix:")
     print(conf_matrix)
+    print("\nClassification Report:")
     print(class_report)
     
-    return acc, conf_matrix, class_report
+    return acc, conf_matrix, class_report, mean_final_abs_error
