@@ -6,16 +6,14 @@ class PCNLayer(nn.Module):
     def __init__(self,
         in_dim,                                         #layer above dimension
         out_dim,                                        #current layer dimension
-        activation_fn=torch.relu,
-        activation_deriv=lambda a: (a > 0).float()      #derivate of layer below (linear because of ReLU)
+        activation_fn=nn.GELU,
     ):  
         super().__init__()
-        self.W = nn.Parameter(torch.empty(out_dim, in_dim))
-        torch.nn.init.xavier_uniform_(self.W)
+        self.linear = nn.Linear(in_dim, out_dim, bias=False)
+        nn.init.xavier_uniform_(self.linear.weight)
         self.activation_fn = activation_fn
-        self.activation_deriv = activation_deriv
 
     def forward(self, x_above):
-        a = x_above @ self.W.T
+        a = self.linear(x_above)
         x_hat = self.activation_fn(a)
-        return x_hat, a
+        return x_hat
