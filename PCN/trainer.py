@@ -13,7 +13,7 @@ T_infer, margin_attack = 50, device='mps'):
     for epoch in range(num_epochs):
         epoch_loss = 0.0
 
-        for x_batch, y_batch in tqdm(data_loader):
+        for x_batch, y_batch in tqdm(data_loader, mininterval=20.0):
             B = x_batch.size(0)
             d_0 = model.dims[0]
 

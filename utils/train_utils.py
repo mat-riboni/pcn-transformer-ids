@@ -47,7 +47,7 @@ def evaluate_model(model, test_loader):
 # (Assumendo che get_device sia definito altrove)
 
 def evaluate_pcn_binary(model, test_loader, T_infer, eta_infer, threshold=0.4):
-    device = torch.device('mps') # o get_device()
+    device = torch.device(get_device) # o get_device()
     model.eval()
     model.to(device)
     
@@ -116,7 +116,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 
-def evaluate_pcn_anomaly(model, test_loader, T_infer, eta_infer, threshold_energy=23, device='mps'):
+def evaluate_pcn_anomaly(model, test_loader, T_infer, eta_infer, threshold_energy=23, device='mps', save_img=False, plot_name='energy_density'):
     model.eval()
     model.to(device)
 
@@ -173,7 +173,11 @@ def evaluate_pcn_anomaly(model, test_loader, T_infer, eta_infer, threshold_energ
     plt.legend(loc='upper right')
     plt.grid(True, alpha=0.3, linestyle='--')
     plt.tight_layout()
-    plt.show()
+    if(not save_img):
+        plt.show()
+    else:
+        plt.savefig(plot_name, dpi=400, bbox_inches='tight')
+        plt.close()
 
     preds = (all_energies > threshold_energy).astype(int)
 
