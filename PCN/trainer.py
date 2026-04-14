@@ -79,9 +79,9 @@ T_infer, margin_attack = 200, device='mps'):
             epoch_loss += total_loss.item()
             epoch_loss_norm += loss_normal.item()
             epoch_loss_atk += loss_attack.item()
-            epoch_loss_unl = loss_unlabeled.item()
+            epoch_loss_unl += loss_unlabeled.item()
             num_batches = len(data_loader)
-        print(f"Epoch: {epoch + 1} | Tot: {epoch_loss/num_batches:.2f} | Norm: {epoch_loss_norm/num_batches:.2f} | Atk: {loss_attack.item()/num_batches:.2f}")
+        print(f"Epoch: {epoch + 1} | Tot: {epoch_loss/num_batches:.2f} | Norm: {epoch_loss_norm/num_batches:.2f} | Atk: {epoch_loss_atk/num_batches:.2f}")
 
 import math
 
