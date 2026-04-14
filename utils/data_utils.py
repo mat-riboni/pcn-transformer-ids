@@ -17,6 +17,12 @@ def split_dataset(X, y, test_size=0.2):
     )
     return X_train, X_test, y_train, y_test
 
+def split_dataset_temporal(X, y, test_size=0.2):
+    split_idx = int(len(X) * (1 - test_size))
+    X_train, X_test = X.iloc[:split_idx], X.iloc[split_idx:]
+    y_train, y_test = y.iloc[:split_idx], y.iloc[split_idx:]
+    return X_train, X_test, y_train, y_test
+
 def create_ssl_dataset(X_train, y_train, label_ratio=0.2):
     """
     important: this swaps the (label_ratio%) labels with the value -1.

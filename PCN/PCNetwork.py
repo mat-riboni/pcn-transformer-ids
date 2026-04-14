@@ -16,11 +16,20 @@ class PredictiveCodingNetwork(nn.Module):
             for l in range(self.L)
         ])
 
-    def init_latents(self, batch_size, device):
-        return [
-            torch.zeros(batch_size, d, device=device, requires_grad=True)
-            for d in self.dims[1:]
-        ]
+    def init_latents(self, batch_size, device, prev_latents=None, dynamic_decay=None):
+        if prev_latents is None:
+            return [
+                torch.zeros(batch_size, d, device=device, requires_grad=True)
+                for d in self.dims[1:]
+            ]
+        else:
+            if dynamic_decay is None:
+                dynamic_decay = torch.full((batch_size, 1), 0.9, device=device)
+            
+            return [
+                (z.detach() * dynamic_decay).clone().requires_grad_(True)
+                for z in prev_latents
+            ]
     
     def compute_energy(self, inputs_latents, x_batch):
         latents_with_input = [x_batch] + inputs_latents 
