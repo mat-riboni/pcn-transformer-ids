@@ -12,11 +12,14 @@ T_infer, margin_attack = 200, device='mps'):
     print("training started")
     for epoch in range(num_epochs):
         epoch_loss = 0.0
+        epoch_loss_norm = 0.0
+        epoch_loss_atk = 0.0
+        epoch_loss_unl = 0.0
 
         prev_latents = None
         prev_energy = None
 
-        for x_batch, y_batch in tqdm(data_loader, mininterval=20.0):
+        for x_batch, y_batch in tqdm(data_loader):
             B = x_batch.size(0)
             d_0 = model.dims[0]
 
@@ -74,9 +77,11 @@ T_infer, margin_attack = 200, device='mps'):
             optimizer_weights.step()
 
             epoch_loss += total_loss.item()
-            loss_unlabeled = loss_unlabeled
+            epoch_loss_norm += loss_normal.item()
+            epoch_loss_atk += loss_attack.item()
+            epoch_loss_unl = loss_unlabeled.item()
             num_batches = len(data_loader)
-        print(f"Epoch: {epoch + 1} | Tot: {epoch_loss/num_batches:.2f} | Norm: {loss_normal.item()/num_batches:.2f} | Atk: {loss_attack.item()/num_batches:.2f}")
+        print(f"Epoch: {epoch + 1} | Tot: {epoch_loss/num_batches:.2f} | Norm: {epoch_loss_norm/num_batches:.2f} | Atk: {loss_attack.item()/num_batches:.2f}")
 
 import math
 
