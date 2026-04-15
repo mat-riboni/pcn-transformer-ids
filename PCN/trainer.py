@@ -6,11 +6,11 @@ import torch.nn.functional as F
 from .early_stopping import EarlyStopping
 
 def train_pcn_binary(model, data_loader, num_epochs, eta_infer, eta_learn,
-T_infer, margin_attack = 200, device='mps'):
+T_infer, margin_attack = 200, device='mps',  min_epochs_early_stop=5):
     
     model.to(device).train()
     optimizer_weights = torch.optim.AdamW(model.parameters(), lr=eta_learn)
-    early_stopping = EarlyStopping(patience=1, min_delta=0.1, path='best_pcn_weights.pth')
+    early_stopping = EarlyStopping(patience=1, min_delta=0.1, path='best_pcn_weights.pth', min_epochs=min_epochs_early_stop)
 
     print("training started")
     for epoch in range(num_epochs):
@@ -95,9 +95,9 @@ T_infer, margin_attack = 200, device='mps'):
             num_batches = len(data_loader)
             
         print(f"Epoch: {epoch + 1} | Tot: {epoch_loss/num_batches:.2f} | Norm: {epoch_loss_norm/num_batches:.2f} | Atk: {epoch_loss_atk/num_batches:.2f}")
-        early_stopping(epoch_loss/num_batches, model)
+        early_stopping(epoch_loss/num_batches, model, epoch)
         if early_stopping.early_stop:
-            print(f"Early stop at epoch: {epoch + 1}")
+            print(f"Early stop at epoch: {epoch}")
             break
 
 
