@@ -62,12 +62,12 @@ removed = False
 if not removed:
     X = remove_ip_fields(X)
     removed = True #we can re-run the cell
-X_train, X_test, y_train, y_test = split_dataset(X, y, test_size=0.2)
-X_train, y_ssl = create_ssl_dataset(X_train, y_train, label_ratio=0.99)
+X_train, X_test, y_train, y_test = split_dataset_temporal(X, y, test_size=0.2)
+#X_train, y_ssl = create_ssl_dataset(X_train, y_train, label_ratio=0.9999)
 
 print(X_train.shape)
-print(y_ssl.head())
-print(y_ssl.value_counts())
+#print(y_ssl.head())
+#print(y_ssl.value_counts())
 
 # %%
 X_train = cap_numerical_data(X_train, numerical_features)
@@ -92,19 +92,17 @@ from PCN.trainer import train_pcn_binary
 from PCN.PCNetwork import PredictiveCodingNetwork
 
 device = 'cuda'
-pcn = PredictiveCodingNetwork([41, 256, 128, 64, 32, 16])
+pcn = PredictiveCodingNetwork([41, 64, 32])
 X_tensor = torch.tensor(np.array(X_train), dtype=float32).to(device)
 print("X tensor ok")
-y_tensor = torch.tensor(np.array(y_ssl), dtype=float32).to(device)
+y_tensor = torch.tensor(np.array(y_train), dtype=float32).to(device)
 print("y tensor ok")
 print(X_train.shape)
-print(y_ssl.shape)
+print(y_train.shape)
 
-train_loader = DataLoader(TensorDataset(X_tensor, y_tensor), batch_size=2048, shuffle=False)
+train_loader = DataLoader(TensorDataset(X_tensor, y_tensor), batch_size=4096, shuffle=True)
 print("trainloader")
-num_epochs = 20
-print(num_epochs)
-train_pcn_binary(model=pcn, data_loader=train_loader, num_epochs=num_epochs, eta_infer=0.01, eta_learn=0.0003, T_infer=T_infer, margin_attack=200, device=device)
+train_pcn_binary(model=pcn, data_loader=train_loader, num_epochs=40, eta_infer=0.01, eta_learn=0.0005, T_infer=T_infer, margin_attack=500, device=device)
 torch.save(pcn.state_dict(), 'pcn_model_weights_2.pth')
 
 # %%
@@ -112,7 +110,7 @@ from utils.train_utils import  evaluate_pcn_anomaly
 from PCN.PCNetwork import PredictiveCodingNetwork
 device = 'cuda'
 
-pcn_loaded = PredictiveCodingNetwork([41, 256, 128, 64, 32, 16])
+pcn_loaded = PredictiveCodingNetwork([41, 64, 32])
 state_dict = torch.load('pcn_model_weights_2.pth', map_location=device)
 pcn_loaded.load_state_dict(state_dict)
 pcn_loaded.to(device)
@@ -121,6 +119,6 @@ y_test_tensor = torch.tensor(np.array(y_test), dtype=torch.float32).view(-1, 1).
 test_loader = DataLoader(TensorDataset(X_test_tensor, y_test_tensor), batch_size=2048, shuffle=False)
 pcn_loaded.eval()
 
-evaluate_pcn_anomaly(pcn_loaded, test_loader, T_infer=T_infer, eta_infer=0.01, threshold_energy=5, device=device, save_img=True)
+evaluate_pcn_anomaly(pcn_loaded, test_loader, T_infer=T_infer, eta_infer=0.01, threshold_energy=5, device=device)
 
 

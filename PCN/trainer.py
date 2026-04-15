@@ -3,11 +3,14 @@ import time
 from tqdm import tqdm
 import torch.nn.functional as F
 
-def train_pcn_binary(model, data_loader, num_epochs,  eta_infer, eta_learn,
+from .early_stopping import EarlyStopping
+
+def train_pcn_binary(model, data_loader, num_epochs, eta_infer, eta_learn,
 T_infer, margin_attack = 200, device='mps'):
     
     model.to(device).train()
     optimizer_weights = torch.optim.AdamW(model.parameters(), lr=eta_learn)
+    early_stopping = EarlyStopping(patience=1, min_delta=0.1, path='best_pcn_weights.pth')
 
     print("training started")
     for epoch in range(num_epochs):
@@ -43,12 +46,14 @@ T_infer, margin_attack = 200, device='mps'):
             for p in model.parameters():
                 p.requires_grad = False
             
-            # INFERENCE 
+            mask_valid_infer = mask_normal + mask_unlabeled
+            
             for t in range(T_infer):
-
                 energy = model.compute_energy(latents, x_batch)
-                mean_energy = energy.mean()
-                mean_energy.backward()
+            
+                mean_energy_infer = (energy * mask_valid_infer).sum() / (mask_valid_infer.sum() + 1e-8)
+                
+                mean_energy_infer.backward()
 
                 with torch.no_grad():
                     for z in latents:
@@ -65,11 +70,18 @@ T_infer, margin_attack = 200, device='mps'):
             final_latents = [z.detach().requires_grad_(True) for z in latents]
             final_energy = model.compute_energy(final_latents, x_batch)
             prev_energy = final_energy.detach()
-
-                
-            loss_normal = (final_energy * mask_normal).mean()
-            loss_unlabeled = (final_energy * mask_unlabeled).mean()
-            loss_attack = ((F.relu(margin_attack - final_energy) * mask_attack).mean()) * 0.1
+            
+            num_normal = mask_normal.sum() + 1e-8
+            num_unlabeled = mask_unlabeled.sum() + 1e-8
+            num_attacks = mask_attack.sum() + 1e-8
+            
+            loss_normal = (final_energy * mask_normal).sum() / num_normal
+            loss_unlabeled = (final_energy * mask_unlabeled).sum() / num_unlabeled
+            
+            dynamic_margin = loss_normal.detach() + margin_attack
+            loss_attack_sum = (F.relu(dynamic_margin - final_energy) * mask_attack).sum()
+            loss_attack = (loss_attack_sum / num_attacks) # * 0.1
+            
             total_loss = loss_normal + loss_unlabeled + loss_attack
 
             total_loss.backward()
@@ -81,24 +93,12 @@ T_infer, margin_attack = 200, device='mps'):
             epoch_loss_atk += loss_attack.item()
             epoch_loss_unl += loss_unlabeled.item()
             num_batches = len(data_loader)
+            
         print(f"Epoch: {epoch + 1} | Tot: {epoch_loss/num_batches:.2f} | Norm: {epoch_loss_norm/num_batches:.2f} | Atk: {epoch_loss_atk/num_batches:.2f}")
-
-import math
-
-def calculate_adaptive_decay(time_since_anomaly, gamma_base=0.50, gamma_max=0.99, k_decay=0.2):
-    """
-    Calcola il fattore di decadimento della memoria latente (State-Dependent Forgetting).
-    
-    Args:
-        time_since_anomaly (int): Numero di batch trascorsi dall'ultimo evento ad alta energia.
-        gamma_base (float): Decadimento asintotico (oblio rapido per la normalità).
-        gamma_max (float): Decadimento iniziale (massima ritenzione al momento dello shock).
-        k_decay (float): Velocità di rilassamento (più è alto, più in fretta scende a gamma_base).
-        
-    Returns:
-        float: Il fattore di decadimento calcolato per il batch corrente.
-    """
-    return gamma_base + (gamma_max - gamma_base) * math.exp(-k_decay * time_since_anomaly)
+        early_stopping(epoch_loss/num_batches, model)
+        if early_stopping.early_stop:
+            print(f"Early stop at epoch: {epoch + 1}")
+            break
 
 
 def calculate_energy_based_decay(energy, gamma_base=0.95, gamma_shock=0.1, shock_scale=20.0):
